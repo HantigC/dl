@@ -2,7 +2,7 @@ from itertools import cycle, islice
 
 import torch
 from torch import nn
-from src.layers.linear import LinearDefered
+from src.layers.lazy import LazyLinear
 
 
 def init_if_none(x, default):
@@ -112,7 +112,7 @@ class VGG(nn.Module):
         )
         self.ffn = nn.Sequential(
             *[
-                LinearDefered(out_features=4096),
+                LazyLinear(out_features=4096),
                 nn.Linear(in_features=4096, out_features=4096),
                 nn.Linear(in_features=4096, out_features=classes_num),
             ]
