@@ -1,0 +1,6 @@
+[submodule "deps/light-torch"]
+	path = deps/light-torch
+	url = git@github.com:HantigC/light-torch.git
+[submodule "deps/configfy-build"]
+	path = deps/configfy-build
+	url = git@github.com:HantigC/configfy-build.git

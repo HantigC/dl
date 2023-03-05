@@ -1,10 +1,12 @@
-[tool.yapf]
-based_on_style = "pep8"
-spaces_before_comment = 4
-split_before_logical_operator = true
-
-column_limit = 90
-max_line_length = 90
+[project]
+name = "dl"
+version = "0.0.1"
+authors = [
+  { name="HSC" },
+]
+description = "Deep Leaning models"
+readme = "README.md"
+requires-python = ">=3.7"
 
 [tool.black]
-line-length = 90
+line-length = 88
