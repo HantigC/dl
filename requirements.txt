@@ -1,4 +1,6 @@
 torch==1.12.1
 torchvision==0.13.1
-torchaudio==0.12
 tqdm==4.65.
+
+-e deps/configfy-build
+-e deps/light-torch
