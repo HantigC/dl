@@ -99,15 +99,29 @@ class Yolo(nn.Module):
             backbone = YoloBackbone()
 
         self.backbone = backbone
-        self.classes_num = classes_num
-        self.grid = grid_size
-        self.num_boxes = num_boxes
         self.to_grid = nn.AdaptiveAvgPool2d(grid_size)
+
+        self.classes_num = classes_num
+        self.grid_size = grid_size
+        self.grid_area = grid_size[0] * grid_size[1]
+        self.num_boxes = num_boxes
         self.output_size = 5 * num_boxes + classes_num
+
         self.conf = LazyConv2d(self.output_size, kernel_size=(1, 1))
 
     def forward(self, x):
         x = self.backbone(x)
         x = self.to_grid(x)
         x = self.conf(x)
-        return x
+        batch_size = x.shape[0]
+        x = x.permute(0, 2, 3, 1).reshape(batch_size, -1, self.output_size)
+        labels = x[..., -self.classes_num :]
+        boxes = x[..., : -self.classes_num].reshape(batch_size, self.grid_area, -1, 5)
+        confidences = boxes[..., 4:]
+        boxes = boxes[..., :4]
+
+        return {
+            "boxes": boxes,
+            "labels": labels,
+            "confidences": confidences,
+        }
