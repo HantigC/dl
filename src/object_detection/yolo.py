@@ -1,7 +1,12 @@
 from collections import OrderedDict
+
+import torch
 from torch import nn
+from torch.nn import functional as F
+
 from src.layers.xtended import Conv2dSamePadding
 from src.layers.lazy import LazyConv2d
+from .utils.box import make_grid, compute_iou_tl_br
 
 
 class YoloBackbone(nn.Module):
@@ -125,3 +130,41 @@ class Yolo(nn.Module):
             "labels": labels,
             "confidences": confidences,
         }
+
+
+class YoloV1ClassLoss(nn.Module):
+    def __init__(self, grid_size=None, grid=None):
+        if grid is None:
+            if grid_size is None:
+                raise ValueError(
+                    "At least one of `grid_size` and `grid` should not be None"
+                )
+            grid = make_grid(grid_size)
+        super().__init__()
+        self.grid = grid
+
+    def forward(
+        self,
+        pred_labels,
+        gt_labels_list,
+        gt_boxes_list,
+    ):
+        max_iou_list = []
+        max_iou_indices_list = []
+        entropies = []
+
+        for pred_labels, gt_labels, gt_boxes in zip(
+            pred_labels, gt_labels_list, gt_boxes_list
+        ):
+            max_iou, max_iou_indices = compute_iou_tl_br(self.grid, gt_boxes).max(1)
+            max_iou_list.append(max_iou)
+            max_iou_indices_list.append(gt_labels[max_iou_indices])
+            entropy = F.cross_entropy(
+                pred_labels, gt_labels[max_iou_indices], reduction="none"
+            )
+            entropy = entropy[max_iou > 0]
+            entropies.append(entropy)
+
+        loss_value = torch.mean(torch.hstack(entropies))
+
+        return loss_value
