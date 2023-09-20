@@ -1,6 +1,7 @@
 torch==1.12.1
 torchvision==0.13.1
-tqdm==4.65.
+tqdm==4.66.1
+torchsummary==1.5.1
 
 -e deps/configfy-build
 -e deps/light-torch
