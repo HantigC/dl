@@ -9,7 +9,7 @@ from src.layers.lazy import LazyConv2d
 from .utils.box import make_grid, compute_iou_tl_br
 
 
-class YoloBackbone(nn.Module):
+class YoloV1Backbone(nn.Module):
     """docstring for YoloBackbone."""
 
     def __init__(self):
@@ -95,13 +95,13 @@ class YoloBackbone(nn.Module):
         return x
 
 
-class Yolo(nn.Module):
+class YoloV1(nn.Module):
     """docstring for Yolo."""
 
     def __init__(self, classes_num, num_boxes=2, grid_size=(7, 7), backbone=None):
         super().__init__()
         if backbone is None:
-            backbone = YoloBackbone()
+            backbone = YoloV1Backbone()
 
         self.backbone = backbone
         self.to_grid = nn.AdaptiveAvgPool2d(grid_size)
@@ -137,7 +137,7 @@ class YoloV1ClassLoss(nn.Module):
         if grid is None:
             if grid_size is None:
                 raise ValueError(
-                    "At least one of `grid_size` and `grid` should not be None"
+                    "At least one of `grid_size` and `grid` should be provided"
                 )
             grid = make_grid(grid_size)
         super().__init__()
