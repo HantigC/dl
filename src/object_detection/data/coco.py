@@ -8,7 +8,7 @@ from torch.utils.data.dataset import Dataset
 
 
 class CocoDetectionDataset(Dataset):
-    def __init__(self, coco_dict, images_path, transform=None):
+    def __init__(self, coco_dict, images_path, transform=None, target_transform=None):
         self.coco_dict = coco_dict
         self.image2annotation_map = collect_annotations(coco_dict)
         self._id2ordered_id = {
@@ -22,6 +22,7 @@ class CocoDetectionDataset(Dataset):
         self.id2name_map = {v: k for k, v in self.name2id_map.items()}
         self.images_path = Path(images_path)
         self.transform = transform
+        self.target_transform = target_transform
 
     def __len__(self):
         return len(self.coco_dict["images"])
@@ -34,18 +35,21 @@ class CocoDetectionDataset(Dataset):
             cv2.COLOR_BGR2RGB,
         )
         img_annotations = self.image2annotation_map[image_dict["id"]]
-        labels = defaultdict(list)
+        target = defaultdict(list)
         h, w, _ = img.shape
         for annotation in img_annotations:
-            labels["category"].append(self._id2ordered_id[annotation["category_id"]])
+            target["labels"].append(self._id2ordered_id[annotation["category_id"]])
             bbox = annotation["bbox"]
             xbbox, ybbox, wbbox, hbbox = bbox
             normalized_bbox_xywh = (xbbox / w, ybbox / h, wbbox / w, hbbox / h)
             normalized_bbox_yxyx = xywh_to_yxyx(*normalized_bbox_xywh)
-            labels["bbox"].append(normalized_bbox_yxyx)
+            target["boxes"].append(normalized_bbox_yxyx)
         if self.transform is not None:
             img = self.transform(img)
-        return img, labels
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        return img, target
 
     @classmethod
     def from_json_filename(cls, coco_json_filename):

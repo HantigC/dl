@@ -1,7 +1,7 @@
 from typing import Sequence, Tuple, Union, Optional
 import cv2
 import numpy as np
-from .box import make_grid, xywh_to_yxyx, np_compute_iou_tl_br
+from src.npx.box import make_grid, xywh_to_yxyx, compute_iou_tl_br
 
 
 def _init_grid(grid=None, grid_size=None, **kwargs):
@@ -124,10 +124,10 @@ def draw_bbox_grid_occupancy_tlbr(
     scale: bool = True,
     **kwargs,
 ):
-    grid = _init_grid(grid=grid, grid_size=grid_size, as_torch=False)
+    grid = _init_grid(grid=grid, grid_size=grid_size)
     colors = _init_colors(colors, boxes)
 
-    iou: np.ndarray = np_compute_iou_tl_br(grid, np.array(boxes))
+    iou: np.ndarray = compute_iou_tl_br(grid, np.array(boxes))
     iou_max_values = iou.max(1)
     iou_max_indices = iou.argmax(1)
 
