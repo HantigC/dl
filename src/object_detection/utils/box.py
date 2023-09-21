@@ -38,5 +38,5 @@ def yxyx_to_xywh(yxyx):
 def xywh_to_yxyx(xywh):
     xywh = np.array(xywh)
     wh = xywh[:, 2:] + xywh[:, :2]
-    yxyx = np.concatenate([xywh[:, 1], xywh[:, 0], wh[:, 1], wh[:, 0]], axis=-1)
+    yxyx = np.stack([xywh[:, 1], xywh[:, 0], wh[:, 1], wh[:, 0]], axis=-1)
     return yxyx

@@ -59,7 +59,7 @@ def draw_bbox_xyhw(
     cv2.putText(img, category, (int(tl_x), int(tl_y)), 1, 1, text_color)
 
 
-def draw_boxes_tlbr(
+def draw_boxes_tlbr_(
     img,
     boxes: Sequence[Sequence[Union[int, float]]],
     colors: Optional[Union[Sequence[int], Sequence[Sequence[int]]]] = None,
@@ -97,7 +97,7 @@ def draw_boxes_tlbr(
             )
 
 
-def draw_boxes_xywh(
+def draw_boxes_xywh_(
     img,
     boxes: Sequence[Sequence[Union[int, float]]],
     colors: Optional[Union[Sequence[int], Sequence[Sequence[int]]]] = None,
@@ -105,4 +105,4 @@ def draw_boxes_xywh(
     **kwargs,
 ) -> None:
     xywh = xywh_to_yxyx(boxes)
-    draw_boxes_tlbr(img, xywh, colors=colors, scale=scale, **kwargs)
+    draw_boxes_tlbr_(img, xywh, colors=colors, scale=scale, **kwargs)
