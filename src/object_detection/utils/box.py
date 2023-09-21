@@ -2,16 +2,19 @@ import torch
 import numpy as np
 
 
-def make_grid(grid_size, height=1, width=1):
+def make_grid(grid_size, height=1, width=1, as_torch=True):
     h, w = grid_size
-    xs = torch.linspace(0, width, w + 1)
-    ys = torch.linspace(0, height, h + 1)
-    ws = torch.stack(torch.meshgrid(ys, xs, indexing="ij"), dim=2)
-    grid = torch.cat([ws[:-1, :-1], ws[1:, 1:]], dim=-1).view(-1, 4)
+    xs = np.linspace(0, width, w + 1)
+    ys = np.linspace(0, height, h + 1)
+    ws = np.stack(np.meshgrid(ys, xs), axis=2)
+    grid = np.concatenate([ws[:-1, :-1], ws[1:, 1:]], axis=-1)
+    grid = grid.reshape(-1, 4)
+    if as_torch:
+        return torch.from_numpy(grid)
     return grid
 
 
-def compute_iou_tl_br(st_tlbr, nd_tlbr):
+def torch_compute_iou_tl_br(st_tlbr, nd_tlbr):
     tl = torch.maximum(st_tlbr[:, None, :2], nd_tlbr[:, :2])
     br = torch.minimum(st_tlbr[:, None, 2:], nd_tlbr[:, 2:])
 
@@ -19,6 +22,20 @@ def compute_iou_tl_br(st_tlbr, nd_tlbr):
 
     st_area = compute_area(st_tlbr).unsqueeze(-1)
     nd_area = compute_area(nd_tlbr)
+    union = st_area + nd_area + intersection
+    iou = intersection / union
+    return iou
+
+
+def np_compute_iou_tl_br(st_tlbr, nd_tlbr):
+    tl = np.maximum(st_tlbr[:, None, :2], nd_tlbr[:, :2])
+    br = np.minimum(st_tlbr[:, None, 2:], nd_tlbr[:, 2:])
+    intersection = np.maximum((br - tl), 0).prod(-1)
+
+    st_area = compute_area(st_tlbr)
+    st_area = np.expand_dims(st_area, axis=-1)
+    nd_area = compute_area(nd_tlbr)
+
     union = st_area + nd_area + intersection
     iou = intersection / union
     return iou
