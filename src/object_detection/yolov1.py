@@ -148,7 +148,7 @@ class YoloV1Loss(nn.Module):
         self.lambda_coord = lambda_coord
         self.lambda_noobj = lambda_noobj
 
-    def forward(self, gts, preds):
+    def forward(self, preds, gts):
         classification_losses = []
         box_losses = []
         confidence_losses = []
@@ -192,7 +192,7 @@ class YoloV1Loss(nn.Module):
         dhdw = dhdw[max_iou > 0]
         pos_loss = torch.pow(dydx, 2).sum()
         size_loss = torch.pow(dhdw, 2).sum()
-        return pos_loss + size_loss
+        return self.lambda_coord * (pos_loss + size_loss)
 
     def _confidence_loss(self, confidences, max_iou_values):
         confidence_mask = max_iou_values > 0
