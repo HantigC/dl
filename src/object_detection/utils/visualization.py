@@ -1,7 +1,7 @@
 from typing import Sequence, Tuple, Union, Optional
 import cv2
 import numpy as np
-from src.npx.box import make_grid, xywh_to_yxyx, compute_iou_tl_br
+from src.npx.box import make_grid, xywh_to_yxyx, compute_iou_tl_br, yxhw_to_yxyx
 
 
 def _init_grid(grid=None, grid_size=None, **kwargs):
@@ -29,6 +29,22 @@ def draw_grid_(
             (int(w * br_x), int(h * br_y)),
             (255, 0, 0),
         )
+
+
+def draw_rect_yxhw_(
+    img: np.ndarray,
+    tl_y: Union[int, float],
+    tl_x: Union[int, float],
+    h: Union[int, float],
+    w: Union[int, float],
+    color: Tuple[int, int, int],
+    **kwargs,
+) -> None:
+    tl_x = int(tl_x)
+    tl_y = int(tl_y)
+    w = int(w)
+    h = int(h)
+    cv2.rectangle(img, (tl_x, tl_y), (tl_x + w, tl_y + h), color=color, **kwargs)
 
 
 def draw_rect_xywh_(
@@ -70,7 +86,7 @@ def _init_colors(colors=None, boxes=None):
             colors
         ), "`boxes` and `colors` should hange the same length"
         if not isinstance(colors[0], (list, tuple)):
-            colors = np.repeat(np.array([colors]), axis=0)
+            colors = np.repeat(np.array([colors]), axis=0).tolist()
     else:
         raise ValueError(
             f"`colors` should be a list of colors or a single color, not {colors}"
@@ -111,8 +127,19 @@ def draw_boxes_xywh_(
     scale: bool = True,
     **kwargs,
 ) -> None:
-    xywh = xywh_to_yxyx(boxes)
-    draw_boxes_tlbr_(img, xywh, colors=colors, scale=scale, **kwargs)
+    yxyx = xywh_to_yxyx(boxes)
+    draw_boxes_tlbr_(img, yxyx, colors=colors, scale=scale, **kwargs)
+
+
+def draw_boxes_yxhw_(
+    img,
+    boxes: Sequence[Sequence[Union[int, float]]],
+    colors: Optional[Union[Sequence[int], Sequence[Sequence[int]]]] = None,
+    scale: bool = True,
+    **kwargs,
+) -> None:
+    yxyx = yxhw_to_yxyx(boxes)
+    draw_boxes_tlbr_(img, yxyx, colors=colors, scale=scale, **kwargs)
 
 
 def draw_bbox_grid_occupancy_tlbr(

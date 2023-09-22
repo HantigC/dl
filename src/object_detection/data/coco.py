@@ -41,12 +41,11 @@ class CocoDetectionDataset(Dataset):
             target["labels"].append(self._id2ordered_id[annotation["category_id"]])
             bbox = annotation["bbox"]
             xbbox, ybbox, wbbox, hbbox = bbox
-            normalized_bbox_xywh = (xbbox / w, ybbox / h, wbbox / w, hbbox / h)
-            normalized_bbox_yxyx = xywh_to_yxyx(*normalized_bbox_xywh)
-            target["boxes"].append(normalized_bbox_yxyx)
+            normalized_bbox_yxhw = (ybbox / h, xbbox / w, hbbox / h, wbbox / w)
+            target["boxes"].append(normalized_bbox_yxhw)
+
         if self.transform is not None:
             img = self.transform(img)
-
         if self.target_transform is not None:
             target = self.target_transform(target)
         return img, target

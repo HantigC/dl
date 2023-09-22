@@ -22,11 +22,30 @@ def yxyx_to_xywh(yxyx):
     return xywh
 
 
+def yxhw_to_xywh(yxhw):
+    yxhw = np.array(yxhw)
+    xywh = np.stack([yxhw[:, 1], yxhw[:, 0], yxhw[:, 3], yxhw[:, 2]], axis=-1)
+    return xywh
+
+
 def xywh_to_yxyx(xywh):
     xywh = np.array(xywh)
     wh = xywh[:, 2:] + xywh[:, :2]
     yxyx = np.stack([xywh[:, 1], xywh[:, 0], wh[:, 1], wh[:, 0]], axis=-1)
     return yxyx
+
+
+def yxhw_to_yxyx(xywh):
+    xywh = np.array(xywh)
+    wh = xywh[:, 2:] + xywh[:, :2]
+    yxyx = np.stack([xywh[:, 0], xywh[:, 1], wh[:, 0], wh[:, 1]], axis=-1)
+    return yxyx
+
+
+def xywh_to_yxhw(xywh):
+    xywh = np.array(xywh)
+    yxhw = np.stack([xywh[:, 1], xywh[:, 0], xywh[:, 3], xywh[:, 2]], axis=-1)
+    return yxhw
 
 
 def make_grid(grid_size, height=1, width=1):
