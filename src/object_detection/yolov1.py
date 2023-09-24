@@ -144,9 +144,9 @@ class YoloV1Loss(nn.Module):
             grid = make_grid(grid_size)
         super().__init__()
 
-        self.grid = grid
-        self.lambda_coord = lambda_coord
-        self.lambda_noobj = lambda_noobj
+        self.register_buffer("grid", grid)
+        self.register_buffer("lambda_coord", torch.tensor(lambda_coord))
+        self.register_buffer("lambda_noobj", torch.tensor(lambda_noobj))
 
     def forward(self, preds, gts):
         classification_losses = []
