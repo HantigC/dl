@@ -88,5 +88,4 @@ class ObjectDetectionModule(Module):
         return self._compute_loss(batch, batch_idx, epoch_idx)
 
     def get_report(self):
-        self.step_collector.add_value("accuracy", self.metrics_board.accuracy())
         return self.step_collector.get_summary()
