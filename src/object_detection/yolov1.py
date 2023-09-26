@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from src.layers.xtended import Conv2dSamePadding
 from src.layers.lazy import LazyConv2d
-from src.torchx.box import make_grid, compute_iou_tl_br
+from src.torchx.box import make_grid, compute_iou_tl_br, yxhw_to_yxyx
 
 
 class YoloV1Backbone(nn.Module):
@@ -160,7 +160,9 @@ class YoloV1Loss(nn.Module):
             preds["boxes"],
             preds["confidences"],
         ):
-            max_iou, max_iou_indices = compute_iou_tl_br(self.grid, gt_boxes).max(1)
+            max_iou, max_iou_indices = compute_iou_tl_br(
+                self.grid, yxhw_to_yxyx(gt_boxes)
+            ).max(1)
             classification_losses.append(
                 self._classification_loss(
                     pred_labels, gt_labels, max_iou, max_iou_indices
@@ -243,5 +245,4 @@ class YoloV1ClassLoss(nn.Module):
             entropies.append(entropy)
 
         loss_value = torch.sum(torch.hstack(entropies))
-
         return loss_value
