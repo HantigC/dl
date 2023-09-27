@@ -114,7 +114,35 @@ class YoloV1(nn.Module):
 
         self.conf = LazyConv2d(self.output_size, kernel_size=(1, 1))
 
-    def forward(self, x):
+    def train(self, mode=True):
+        super().train(mode)
+        if mode:
+            self.forward = self._train_forward
+        else:
+            self.forward = self._eval_forward
+        return self
+
+    def eval(self):
+        super().eval()
+        self.forward = self._eval_forward
+        return self
+
+    def _eval_forward(self, x):
+        y = self._train_forward(x)
+        _, indices = torch.max(y["labels"], -1)
+
+        labels = indices.unsqueeze(-1)
+        batch_size = x.shape[0]
+        labels = torch.tile(labels, (1, 1, self.num_boxes))
+        labels = labels.reshape(batch_size, -1)
+
+        y["labels"] = labels
+        y["boxes"] = y["boxes"].reshape(batch_size, -1, 4)
+        y["scores"] = y["scores"].reshape(batch_size, -1)
+
+        return y
+
+    def _train_forward(self, x):
         x = self.backbone(x)
         x = self.to_grid(x)
         x = self.conf(x)
@@ -128,8 +156,10 @@ class YoloV1(nn.Module):
         return {
             "boxes": torch.sigmoid(boxes),
             "labels": labels,
-            "confidences": torch.sigmoid(confidences),
+            "scores": torch.sigmoid(confidences),
         }
+
+    forward = _train_forward
 
 
 class YoloV1Loss(nn.Module):
@@ -158,7 +188,7 @@ class YoloV1Loss(nn.Module):
             gts["boxes"],
             preds["labels"],
             preds["boxes"],
-            preds["confidences"],
+            preds["scores"],
         ):
             max_iou, max_iou_indices = compute_iou_tl_br(
                 self.grid, yxhw_to_yxyx(gt_boxes)
