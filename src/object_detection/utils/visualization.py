@@ -81,12 +81,12 @@ def draw_bbox_xyhw(
 def _init_colors(colors=None, boxes=None):
     if colors is None:
         colors = np.random.randint(255, size=(len(boxes), 3)).tolist()
-    elif isinstance(colors, list):
+    elif isinstance(colors, list) and isinstance(colors[0], (list, tuple)):
         assert len(boxes) == len(
             colors
         ), "`boxes` and `colors` should hange the same length"
-        if not isinstance(colors[0], (list, tuple)):
-            colors = np.repeat(np.array([colors]), axis=0).tolist()
+    elif isinstance(colors[0], (int, float)):
+        colors = np.repeat(np.array([colors]), len(boxes), axis=0).tolist()
     else:
         raise ValueError(
             f"`colors` should be a list of colors or a single color, not {colors}"
