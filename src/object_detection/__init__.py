@@ -7,19 +7,19 @@ def nms_yxyx(boxes, labels, scores, iou_threshold=0.5):
     score_value, score_indices = torch.sort(scores, descending=True, stable=True)
     keep = defaultdict(list)
     while len(score_indices) > 0:
+
         selected = score_indices[0]
 
         keep["boxes"].append(boxes[selected])
-        keep["lables"].append(labels[selected])
+        keep["labels"].append(labels[selected])
         keep["scores"].append(scores[selected])
 
-        boxes[score_indices[0]].unsqueeze(0)
-
-        iou = compute_iou_tl_br(
-            boxes[score_indices[1:]], boxes[score_indices[0]].unsqueeze(0)
-        )
-        mask = (iou < iou_threshold).squeeze_()
-        score_indices = score_indices[1:][mask]
+        score_indices = score_indices[1:]
+        if len(score_indices) == 0:
+            break
+        iou = compute_iou_tl_br(boxes[score_indices], boxes[selected].unsqueeze(0))
+        mask = (iou < iou_threshold).reshape(-1)
+        score_indices = score_indices[mask]
 
     return {k: torch.stack(v) for k, v in keep.items()}
 
