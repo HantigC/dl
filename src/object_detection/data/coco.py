@@ -1,3 +1,4 @@
+from typing import Callable, Dict, Any, Union
 from collections import defaultdict
 from functools import lru_cache
 import json
@@ -8,28 +9,38 @@ from torch.utils.data.dataset import Dataset
 
 
 class CocoDetectionDataset(Dataset):
-    def __init__(self, coco_dict, images_path, transform=None, target_transform=None):
+    def __init__(
+        self,
+        coco_dict: Dict[str, Any],
+        images_path: Union[str, Path],
+        transform: Callable[[Any], Any] = None,
+        target_transform: Callable[[Any], Any] = None,
+        select_annotation: Callable[[Dict[str, Any]], bool] = None,
+    ) -> None:
         self.coco_dict = coco_dict
-        self.image2annotation_map = collect_annotations(coco_dict)
+        self.image2annotation_map, self.images, self.categories = collect_annotations(
+            coco_dict, select_annotation
+        )
         self._id2ordered_id = {
             category_dict["id"]: num
-            for num, category_dict in enumerate(coco_dict["categories"])
+            for num, category_dict in enumerate(self.categories)
         }
         self.name2id_map = {
             category_dict["name"]: num
-            for num, category_dict in enumerate(coco_dict["categories"])
+            for num, category_dict in enumerate(self.categories)
         }
+        self.categories_num = len(self.categories)
         self.id2name_map = {v: k for k, v in self.name2id_map.items()}
         self.images_path = Path(images_path)
         self.transform = transform
         self.target_transform = target_transform
 
     def __len__(self):
-        return len(self.coco_dict["images"])
+        return len(self.images)
 
     @lru_cache(maxsize=16)
     def __getitem__(self, idx):
-        image_dict = self.coco_dict["images"][idx]
+        image_dict = self.images[idx]
         img = cv2.cvtColor(
             cv2.imread(str(self.images_path / image_dict["file_name"])),
             cv2.COLOR_BGR2RGB,
@@ -62,11 +73,30 @@ def xywh_to_yxyx(x, y, w, h):
     return (y, x, y + h, x + w)
 
 
-def collect_annotations(coco_dict):
+def collect_annotations(coco_dict, select_annotation=None):
     image2annotations_map = defaultdict(list)
-    for annotation_dict in coco_dict["annotations"]:
+    annotations = coco_dict["annotations"]
+    id_to_image_map = {
+        image_dict["id"]: image_dict for image_dict in coco_dict["images"]
+    }
+
+    id_to_category_map = {
+        category_dict["id"]: category_dict for category_dict in coco_dict["categories"]
+    }
+    if select_annotation is not None:
+        annotations = filter(select_annotation, annotations)
+    categories = {}
+    images_map = {}
+    for annotation_dict in annotations:
         image2annotations_map[annotation_dict["image_id"]].append(annotation_dict)
-    return image2annotations_map
+        categories[annotation_dict["category_id"]] = id_to_category_map[
+            annotation_dict["category_id"]
+        ]
+        images_map[annotation_dict["image_id"]] = id_to_image_map[
+            annotation_dict["image_id"]
+        ]
+
+    return image2annotations_map, list(images_map.values()), list(categories.values())
 
 
 def make_id2category_map(coco_dict):
