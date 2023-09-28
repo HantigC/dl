@@ -39,6 +39,13 @@ def yxyx_to_xywh(yxyx, min=0, max=1):
     return xywh
 
 
+def yxyx_to_yxhw(yxyx, min=0, max=1):
+    hw = yxyx[:, 2:] - yxyx[:, :2]
+    xywh = torch.stack([yxyx[:, 0], yxyx[:, 1], hw[:, 0], hw[:, 1]], dim=-1)
+    torch.clamp_(yxyx, min=min, max=max)
+    return xywh
+
+
 def xywh_to_yxyx(xywh, min=0, max=1):
     wh = xywh[:, 2:] + xywh[:, :2]
     yxyx = torch.stack([xywh[:, 1], xywh[:, 0], wh[:, 1], wh[:, 0]], dim=-1)
