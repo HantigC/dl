@@ -10,7 +10,7 @@ def compute_iou_tl_br(st_tlbr, nd_tlbr):
     st_area = compute_area(st_tlbr)
     st_area = st_area.unsqueeze(-1)
     nd_area = compute_area(nd_tlbr)
-    union = st_area + nd_area + intersection
+    union = st_area + nd_area - intersection
     iou = intersection / union
     return iou
 
