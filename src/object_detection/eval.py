@@ -23,7 +23,12 @@ class MeanAveragePrecision:
         self.iou_thresholds = iou_thresholds
         self.recall_thresholds = recall_thresholds
 
-        self.pred_gt = []
+        self.category_counters = None
+        self.scores_per_category = None
+        self.tp_per_class_per_th = None
+        self.reinit()
+
+    def reinit(self):
         self.category_counters = defaultdict(int)
         self.scores_per_category = defaultdict(list)
         self.tp_per_class_per_th = defaultdict(lambda: defaultdict(list))
@@ -53,7 +58,7 @@ class MeanAveragePrecision:
 
                 ap = self._get_precission_at_recall(recall, precision)
                 aps.append(ap)
-            map_per_th[th] = np.mean(aps)
+            map_per_th[f"mAP_{th}"] = np.mean(aps)
         return map_per_th
 
     def _get_precission_at_recall(self, recall, precision):

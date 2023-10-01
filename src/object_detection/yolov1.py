@@ -1,12 +1,19 @@
-from collections import OrderedDict
+from typing import Any, Callable, Mapping
+from collections import OrderedDict, defaultdict
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
+from light_torch.module import Module
+
 from src.layers.xtended import Conv2dSamePadding
 from src.layers.lazy import LazyConv2d
 from src.torchx.box import make_grid, compute_iou_tl_br, yxhw_to_yxyx
+from src.torchx import to_device
+from .eval import MeanAveragePrecision
+
+from . import nms_yxhw
 
 
 class YoloV1Backbone(nn.Module):
@@ -127,19 +134,24 @@ class YoloV1(nn.Module):
         self.forward = self._eval_forward
         return self
 
-    def _eval_forward(self, x):
-        y = self._train_forward(x)
+    @staticmethod
+    def train_to_eval(y):
         _, indices = torch.max(y["labels"], -1)
 
         labels = indices.unsqueeze(-1)
-        batch_size = x.shape[0]
-        labels = torch.tile(labels, (1, 1, self.num_boxes))
+        num_boxes = y["boxes"].shape[-2]
+        batch_size = y["boxes"].shape[0]
+        labels = torch.tile(labels, (1, 1, num_boxes))
         labels = labels.reshape(batch_size, -1)
 
         y["labels"] = labels
         y["boxes"] = y["boxes"].reshape(batch_size, -1, 4)
         y["scores"] = y["scores"].reshape(batch_size, -1)
+        return y
 
+    def _eval_forward(self, x):
+        y = self._train_forward(x)
+        y = self.train_to_eval(y)
         return y
 
     def _train_forward(self, x):
@@ -276,3 +288,93 @@ class YoloV1ClassLoss(nn.Module):
 
         loss_value = torch.sum(torch.hstack(entropies))
         return loss_value
+
+
+class ObjectDetectionModule(Module):
+    def __init__(
+        self,
+        model: nn.Module,
+        loss,
+        label_mapper: Mapping[str, int],
+        device=None,
+        iou_threshold=0.5,
+        transform: Callable[[Any], Any] = None,
+        transform_y=None,
+    ):
+        super().__init__(model, device)
+        self.label_mapper = label_mapper
+        self.id_mapper = {id_: label for label, id_ in label_mapper.items()}
+        self.model = model
+        self.iou_threshold = iou_threshold
+        self.transform = transform
+        self.transform_y = transform_y
+        self.loss = loss
+        self.mean_ap = MeanAveragePrecision()
+
+    def get_label_num(self):
+        return len(self.label_mapper)
+
+    def label_to_id(self, label):
+        return self.label_mapper[label]
+
+    def id_to_label(self, idd):
+        return self.id_mapper[idd]
+
+    def _log_agg_loss(self, loss):
+        if isinstance(loss, dict):
+            self.log("loss", loss)
+            loss = sum(loss.values())
+        elif isinstance(loss, list):
+            loss = sum(loss)
+        self.log("loss", loss)
+        return loss
+
+    def forward(self, x):
+        if self.transform is not None:
+            x = self.transform.transform(x)
+        y = self.model(to_device(x, self.device))
+        return y
+
+    def predict(self, x):
+        y = self.forward(x)
+        if self.transform_y is not None:
+            y = self.transform_y(y)
+        if not self.training:
+            predicts = defaultdict(list)
+            for pred_boxes, pred_labels, pred_scores in zip(
+                y["boxes"], y["labels"], y["scores"]
+            ):
+                nmsed_y = nms_yxhw(
+                    pred_boxes, pred_labels, pred_scores, self.iou_threshold
+                )
+                for k, v in nmsed_y.items():
+                    predicts[k].append(v)
+            return dict(predicts)
+        return y
+
+    def train_step(self, batch, batch_idx=None, epoch_idx=None):
+        xs, ys_gt = batch
+        ys_gt = to_device(ys_gt, self.device)
+
+        ys_pred = self.forward(xs)
+        loss_value = self.loss(ys_pred, ys_gt)
+        loss_value = self._log_agg_loss(loss_value)
+
+        return loss_value
+
+    def on_val_begin(self):
+        self.mean_ap.reinit()
+
+    def val_step(self, batch, batch_idx=None, epoch_idx=None):
+        xs, ys_gt = batch
+        ys_gt = to_device(ys_gt, self.device)
+
+        ys_pred = self.forward(xs)
+        loss_value = self.loss(ys_pred, ys_gt)
+        loss_value = self._log_agg_loss(loss_value)
+        ys_pred = YoloV1.train_to_eval(ys_pred)
+        self.mean_ap.add_batch(ys_gt, ys_pred)
+        return loss_value
+
+    def on_val_end(self):
+        self.log(value=self.mean_ap.accumulate())
