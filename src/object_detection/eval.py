@@ -34,15 +34,16 @@ class MeanAveragePrecision:
         self.tp_per_class_per_th = defaultdict(lambda: defaultdict(list))
 
     def accumulate(self):
+        sorted_score_indices = {}
         for category, scores in self.scores_per_category.items():
-            self.scores_per_category[category] = np.argsort(scores)
+            sorted_score_indices[category] = np.argsort(scores)
 
         map_per_th = {}
         for th, tp_per_class in self.tp_per_class_per_th.items():
             aps = []
             for label, tp in tp_per_class.items():
                 tp = np.array(tp)
-                tp = tp[self.scores_per_category[label]]
+                tp = tp[sorted_score_indices[label]]
                 fp = (tp == 0).cumsum()
                 tp = tp.cumsum()
                 if self.category_counters[label] == 0:
@@ -86,7 +87,6 @@ class MeanAveragePrecision:
     def _compute(self, pred_boxes, pred_scores, pred_labels, gt_boxes, gt_labels):
         indices = np.argsort(pred_scores)
         ious = compute_iou_tl_br(pred_boxes, gt_boxes)
-        already_ioud = [False for _ in range(len(gt_boxes))]
 
         for gt_label in gt_labels:
             self.category_counters[gt_label] += 1
@@ -94,24 +94,26 @@ class MeanAveragePrecision:
             self.scores_per_category[pred_label].append(pred_score)
 
         for iou_th in self.iou_thresholds:
-            for ind in indices:
-                max_ind = -1
-                for box_ind, box in enumerate(gt_boxes):
-                    if gt_labels[box_ind] != pred_labels[ind]:
+            already_ioud = [False for _ in range(len(gt_boxes))]
+            for pred_idx in indices:
+                max_gt_idx = -1
+                max_iou = iou_th
+                for gt_idx, box in enumerate(gt_boxes):
+                    if gt_labels[gt_idx] != pred_labels[pred_idx]:
                         continue
 
-                    if already_ioud[box_ind]:
+                    if already_ioud[gt_idx]:
                         continue
 
-                    iou_scalar = ious[ind, box_ind]
+                    iou_scalar = ious[pred_idx, gt_idx]
 
-                    if iou_scalar < iou_th:
+                    if iou_scalar < max_iou:
                         continue
-                    iou_th = iou_scalar
-                    max_ind = box_ind
+                    max_iou = iou_scalar
+                    max_gt_idx = gt_idx
 
-                if max_ind != -1:
-                    already_ioud[max_ind] = True
-                    self.tp_per_class_per_th[iou_th][pred_labels[ind]].append(1)
+                if max_gt_idx != -1:
+                    already_ioud[max_gt_idx] = True
+                    self.tp_per_class_per_th[iou_th][pred_labels[pred_idx]].append(1)
                 else:
-                    self.tp_per_class_per_th[iou_th][pred_labels[ind]].append(0)
+                    self.tp_per_class_per_th[iou_th][pred_labels[pred_idx]].append(0)
