@@ -331,7 +331,7 @@ class ObjectDetectionModule(Module):
 
     def forward(self, x):
         if self.transform is not None:
-            x = self.transform.transform(x)
+            x = self.transform(x)
         y = self.model(to_device(x, self.device))
         return y
 
@@ -372,6 +372,7 @@ class ObjectDetectionModule(Module):
         ys_pred = self.forward(xs)
         loss_value = self.loss(ys_pred, ys_gt)
         loss_value = self._log_agg_loss(loss_value)
+        ys_pred = to_device(ys_pred, torch.device("cpu"))
         ys_pred = YoloV1.train_to_eval(ys_pred)
         self.mean_ap.add_batch(ys_gt, ys_pred)
         return loss_value
